@@ -95,7 +95,7 @@ func main() {
 
 	customerStorage := storage.New(log, db)
 	customerUsecase := usecase.New(log, customerStorage)
-	customerServer := server.New(customerUsecase)
+	customerServer := server.New(log, customerUsecase)
 
 	address := fmt.Sprintf(":%d", cfg.CustomerService.Port)
 	lis, err := net.Listen("tcp", address)
