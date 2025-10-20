@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.30-latest
+    container_name: envoy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./deploy/envoy.yaml:/etc/envoy/envoy.yaml
+    depends_on:
+      - shipment-service
+      - customer-service
+
+  shipment-service:
+    build:
+      context: .
+      dockerfile: ./deploy/Dockerfile.shipment
+    container_name: shipment-service
+    environment:
+      - SERVICE_NAME=shipment-service
+      - SERVICE_PORT=8080
+      - CUSTOMER_URL=envoy
+      - CUSTOMER_PORT=9090
+    expose:
+      - "8080"
+
+  customer-service:
+    build:
+      context: .
+      dockerfile: ./deploy/Dockerfile.customer
+    container_name: customer-service
+    environment:
+      - SERVICE_NAME=customer-service
+      - SERVICE_PORT=9090
+    expose:
+      - "9090"
