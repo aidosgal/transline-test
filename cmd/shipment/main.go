@@ -123,7 +123,7 @@ func main() {
 	router.Route("/api/v1", func(apiRouter chi.Router) {
 		apiRouter.Route("/shipments", func(authRouter chi.Router) {
 			authRouter.Post("/", shipmentServer.CreateShipment)
-			authRouter.Post("/{id}", shipmentServer.GetShipment)
+			authRouter.Get("/{id}", shipmentServer.GetShipment)
 		})
 	})
 

@@ -30,13 +30,13 @@ func (s *storage) GetShipment(ctx context.Context, id string) (*entity.Shipment,
 	log := s.log.With("method", "CreateShipment")
 
 	shipment := &entity.Shipment{}
-	err := s.db.QueryRowContext(ctx, `SELECT route, price, status, customer_id, created_at FROM shipments WHERE id=$1`, id).
-		Scan(&shipment.Route, &shipment.Price, &shipment.Status, &shipment.CustomerID, &shipment.CreatedAt)
+	err := s.db.QueryRowContext(ctx, `SELECT id, route, price, status, customer_id, created_at FROM shipments WHERE id=$1`, id).
+		Scan(&shipment.ID, &shipment.Route, &shipment.Price, &shipment.Status, &shipment.CustomerID, &shipment.CreatedAt)
 	if err != nil {
 		log.Error("failed db select shipment", slog.String("id", id), slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get shipment: %w", err)
 	}
-	
+
 	return shipment, nil
 }
 
@@ -50,6 +50,6 @@ func (s *storage) CreateShipment(ctx context.Context, req *entity.CreateReq, cus
 		log.Error("failed db insert shipment", slog.String("error", err.Error()))
 		return "", fmt.Errorf("failed db insert shipment: %w", err)
 	}
-	
+
 	return shipID, nil
 }
