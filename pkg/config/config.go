@@ -57,3 +57,15 @@ func (pc *PostgresConfig) BuildPostgresURL() string {
 		pc.SSLMode,
 	)
 }
+
+func (pc *PostgresConfig) BuildPostgresMigrationURL() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		pc.User,
+		pc.Password,
+		pc.Host,
+		pc.Port,
+		pc.DBName,
+		pc.SSLMode,
+	)
+}
