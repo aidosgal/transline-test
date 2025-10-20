@@ -106,7 +106,7 @@ func main() {
 
 	shipmentStorage := storage.New(log, db)
 	shipmentUsecase := usecase.New(log, shipmentStorage, customerClient)
-	shipmentServer := server.New(shipmentUsecase)
+	shipmentServer := server.New(log, shipmentUsecase)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
