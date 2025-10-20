@@ -36,34 +36,34 @@ func (u *usecase) CreateShipment(ctx context.Context, req *entity.CreateReq) (*e
 		"price", req.Price,
 		"customer_idn", req.Customer.IDN)
 
-	log.Info("starting shipment creation process")
+	log.InfoContext(ctx, "starting shipment creation process")
 
-	log.Info("calling customer service to upsert customer")
+	log.InfoContext(ctx, "calling customer service to upsert customer")
 	customer, err := u.customer.UpsertCustomer(ctx, &customer.UpsertCustomerRequest{
 		Idn: req.Customer.IDN,
 	})
 	if err != nil {
-		log.Error("failed to upsert customer via gRPC", slog.String("error", err.Error()))
+		log.ErrorContext(ctx, "failed to upsert customer via gRPC", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to customer.UpsertCustomer: %w", err)
 	}
-	log.Info("customer upserted via gRPC", slog.String("customer_id", customer.Id))
+	log.InfoContext(ctx, "customer upserted via gRPC", slog.String("customer_id", customer.Id))
 
-	log.Info("saving shipment to storage")
+	log.InfoContext(ctx, "saving shipment to storage")
 	shipmentID, err := u.storage.CreateShipment(ctx, req, customer.Id)
 	if err != nil {
-		log.Error("failed to save shipment to storage", slog.String("error", err.Error()))
+		log.ErrorContext(ctx, "failed to save shipment to storage", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to storage.CreateShipment: %w", err)
 	}
-	log.Info("shipment saved to storage", slog.String("shipment_id", shipmentID))
+	log.InfoContext(ctx, "shipment saved to storage", slog.String("shipment_id", shipmentID))
 
-	log.Info("retrieving created shipment")
+	log.InfoContext(ctx, "retrieving created shipment")
 	shipment, err := u.storage.GetShipment(ctx, shipmentID)
 	if err != nil {
-		log.Error("failed to retrieve created shipment", slog.String("error", err.Error()))
+		log.ErrorContext(ctx, "failed to retrieve created shipment", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to storage.GetShipment: %w", err)
 	}
 
-	log.Info("shipment creation completed successfully",
+	log.InfoContext(ctx, "shipment creation completed successfully",
 		slog.String("shipment_id", shipment.ID),
 		slog.String("customer_id", shipment.CustomerID),
 		slog.String("status", shipment.Status))
@@ -76,15 +76,15 @@ func (u *usecase) CreateShipment(ctx context.Context, req *entity.CreateReq) (*e
 func (u *usecase) GetShipment(ctx context.Context, id string) (*entity.Shipment, error) {
 	log := u.log.With("method", "GetShipment", "shipment_id", id)
 
-	log.Info("retrieving shipment from storage")
+	log.InfoContext(ctx, "retrieving shipment from storage")
 
 	shipment, err := u.storage.GetShipment(ctx, id)
 	if err != nil {
-		log.Error("failed to retrieve shipment from storage", slog.String("error", err.Error()))
+		log.ErrorContext(ctx, "failed to retrieve shipment from storage", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to storage.GetShipment: %w", err)
 	}
 
-	log.Info("shipment retrieved successfully",
+	log.InfoContext(ctx, "shipment retrieved successfully",
 		slog.String("route", shipment.Route),
 		slog.String("status", shipment.Status),
 		slog.Int("price", shipment.Price))

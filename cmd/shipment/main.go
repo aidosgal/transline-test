@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/aidosgal/transline-test/pkg/config"
+	customlogger "github.com/aidosgal/transline-test/pkg/logger"
 	"github.com/aidosgal/transline-test/services/shipment/client"
 	"github.com/aidosgal/transline-test/services/shipment/server"
 	"github.com/aidosgal/transline-test/services/shipment/storage"
@@ -37,10 +38,13 @@ import (
 func main() {
 	cfg := config.MustLoad()
 
+	// Create logger with trace context support
 	log := slog.New(
-		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		}),
+		customlogger.NewTraceHandler(
+			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+				Level: slog.LevelInfo,
+			}),
+		),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
