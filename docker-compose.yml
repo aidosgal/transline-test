@@ -42,9 +42,9 @@ services:
       COLLECTOR_OTLP_ENABLED: "true"
       LOG_LEVEL: info
     ports:
-      - "16686:16686"  # Jaeger UI
-      - "4317:4317"    # OTLP gRPC receiver
-      - "4318:4318"    # OTLP HTTP receiver
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
     restart: unless-stopped
 
   otel-collector:
@@ -54,8 +54,8 @@ services:
     volumes:
       - ./deploy/otel-collector.yaml:/etc/otel-collector-config.yaml
     ports:
-      - "4319:4318"  # OTLP HTTP receiver (mapped to 4319 to avoid conflict with Jaeger)
-      - "4320:4317"  # OTLP gRPC receiver (mapped to 4320 to avoid conflict with Jaeger)
+      - "4319:4318"
+      - "4320:4317"
     depends_on:
       - jaeger
     restart: unless-stopped
@@ -64,8 +64,7 @@ services:
     image: envoyproxy/envoy:v1.30-latest
     container_name: envoy
     ports:
-      - "8080:8080"  # REST API exposed
-      # Note: 9090 gRPC port is NOT exposed externally
+      - "8080:8080"
     volumes:
       - ./deploy/envoy.yaml:/etc/envoy/envoy.yaml
     depends_on:
@@ -114,6 +113,8 @@ services:
       - CUSTOMER_POSTGRES_DBNAME=customer_db
       - CUSTOMER_POSTGRES_SSLMODE=disable
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+    volumes:
+      - ./services/customer/storage/migrations:/app/migrations:ro
     expose:
       - "9090"
     depends_on:

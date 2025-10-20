@@ -11,5 +11,6 @@ RUN go build -o /customer-service .
 FROM alpine:latest
 WORKDIR /root/
 COPY --from=builder /customer-service .
+COPY --from=builder /app/services/customer/storage/migrations ./migrations
 EXPOSE 9090
 CMD ["./customer-service"]

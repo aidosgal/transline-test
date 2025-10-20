@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -15,6 +16,7 @@ import (
 	"github.com/aidosgal/transline-test/services/customer/storage"
 	"github.com/aidosgal/transline-test/services/customer/usecase"
 	pb "github.com/aidosgal/transline-test/specs/proto/customer"
+	"github.com/golang-migrate/migrate/v4"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -24,6 +26,8 @@ import (
 	"google.golang.org/grpc"
 
 	_ "github.com/lib/pq"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func main() {
@@ -66,6 +70,26 @@ func main() {
 		os.Exit(1)
 	}
 	log.Info("connected to database")
+
+	migrationURL := cfg.CustomerService.Postgres.BuildPostgresMigrationURL()
+	migrationPath := "/app/migrations"
+
+	m, err := migrate.New("file://"+migrationPath, migrationURL)
+	if err != nil {
+		log.Error("failed to init migrations service", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	if err := m.Up(); err != nil {
+		if errors.Is(err, migrate.ErrNoChange) {
+			log.Info("no migrations to apply", slog.String("error", err.Error()))
+			return
+		}
+		log.Error("failed to apply migrations", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	log.Info("migration applied successfully")
 
 	customerStorage := storage.New(log, db)
 	customerUsecase := usecase.New(log, customerStorage)
