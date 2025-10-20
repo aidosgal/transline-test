@@ -28,9 +28,8 @@ func New(log *slog.Logger, storage storage.Storage) Usecase {
 
 func (u *usecase) GetCustomer(ctx context.Context, idn string) (*entity.Customer, error) {
 	log := u.log.With("method", "GetCustomer", "idn", idn)
-
+	
 	log.Info("getting customer from storage")
-
 	customer, err := u.storage.GetCustomerByIDN(ctx, idn)
 	if err != nil {
 		log.Error("failed to get customer from storage", slog.String("error", err.Error()))
