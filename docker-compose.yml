@@ -1,16 +1,77 @@
 version: "3.9"
 
 services:
+  postgres-customer:
+    image: postgres:15-alpine
+    container_name: postgres-customer
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: customer_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_customer_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-shipment:
+    image: postgres:15-alpine
+    container_name: postgres-shipment
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shipment_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_shipment_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      LOG_LEVEL: info
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4319:4318"  # OTLP HTTP receiver (mapped to 4319 to avoid conflict with Jaeger)
+      - "4320:4317"  # OTLP gRPC receiver (mapped to 4320 to avoid conflict with Jaeger)
+    depends_on:
+      - jaeger
+    restart: unless-stopped
+
   envoy:
     image: envoyproxy/envoy:v1.30-latest
     container_name: envoy
     ports:
-      - "8080:8080"
+      - "8080:8080"  # REST API exposed
+      # Note: 9090 gRPC port is NOT exposed externally
     volumes:
       - ./deploy/envoy.yaml:/etc/envoy/envoy.yaml
     depends_on:
       - shipment-service
       - customer-service
+    restart: unless-stopped
 
   shipment-service:
     build:
@@ -22,8 +83,21 @@ services:
       - SERVICE_PORT=8080
       - CUSTOMER_URL=envoy
       - CUSTOMER_PORT=9090
+      - SHIPMENT_POSTGRES_HOST=postgres-shipment
+      - SHIPMENT_POSTGRES_PORT=5432
+      - SHIPMENT_POSTGRES_USER=postgres
+      - SHIPMENT_POSTGRES_PASSWORD=postgres
+      - SHIPMENT_POSTGRES_DBNAME=shipment_db
+      - SHIPMENT_POSTGRES_SSLMODE=disable
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     expose:
       - "8080"
+    depends_on:
+      postgres-shipment:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    restart: unless-stopped
 
   customer-service:
     build:
@@ -33,5 +107,22 @@ services:
     environment:
       - SERVICE_NAME=customer-service
       - SERVICE_PORT=9090
+      - CUSTOMER_POSTGRES_HOST=postgres-customer
+      - CUSTOMER_POSTGRES_PORT=5432
+      - CUSTOMER_POSTGRES_USER=postgres
+      - CUSTOMER_POSTGRES_PASSWORD=postgres
+      - CUSTOMER_POSTGRES_DBNAME=customer_db
+      - CUSTOMER_POSTGRES_SSLMODE=disable
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     expose:
       - "9090"
+    depends_on:
+      postgres-customer:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_customer_data:
+  postgres_shipment_data:
