@@ -9,6 +9,21 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: http
+          tracing:
+            provider:
+              name: envoy.tracers.opentelemetry
+              typed_config:
+                "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                grpc_service:
+                  envoy_grpc:
+                    cluster_name: otel_collector
+                  timeout: 0.250s
+                service_name: envoy-proxy
+            spawn_upstream_span: true
+            random_sampling:
+              value: 100.0
+          generate_request_id: true
+          preserve_external_request_id: true
           route_config:
             name: local_route
             virtual_hosts:
@@ -18,6 +33,8 @@ static_resources:
               - match: { prefix: "/api/v1" }
                 route:
                   cluster: shipment_service
+                decorator:
+                  operation: shipment_api
           http_filters:
           - name: envoy.filters.http.router
             typed_config:
@@ -32,16 +49,34 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: grpc
+          codec_type: AUTO
+          tracing:
+            provider:
+              name: envoy.tracers.opentelemetry
+              typed_config:
+                "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                grpc_service:
+                  envoy_grpc:
+                    cluster_name: otel_collector
+                  timeout: 0.250s
+                service_name: envoy-proxy
+            spawn_upstream_span: true
+            random_sampling:
+              value: 100.0
+          generate_request_id: true
+          preserve_external_request_id: true
           route_config:
             name: grpc_route
             virtual_hosts:
             - name: customer_host
               domains: ["*"]
               routes:
-              - match: { prefix: "/customer.CustomerService/" }
+              - match: { prefix: "/customer.Customer/" }
                 route:
                   cluster: customer_service
                   timeout: 0s
+                decorator:
+                  operation: customer_grpc
           http_filters:
           - name: envoy.filters.http.router
             typed_config:
@@ -66,6 +101,11 @@ static_resources:
     connect_timeout: 0.25s
     type: logical_dns
     lb_policy: round_robin
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config:
+          http2_protocol_options: {}
     load_assignment:
       cluster_name: customer_service
       endpoints:
@@ -75,3 +115,22 @@ static_resources:
               socket_address:
                 address: customer-service
                 port_value: 9090
+
+  - name: otel_collector
+    connect_timeout: 0.25s
+    type: logical_dns
+    lb_policy: round_robin
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config:
+          http2_protocol_options: {}
+    load_assignment:
+      cluster_name: otel_collector
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: otel-collector
+                port_value: 4317

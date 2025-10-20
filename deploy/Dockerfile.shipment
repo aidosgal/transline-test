@@ -11,5 +11,6 @@ RUN go build -o /shipment-service .
 FROM alpine:latest
 WORKDIR /root/
 COPY --from=builder /shipment-service .
+COPY --from=builder /app/services/shipment/storage/migrations ./migrations
 EXPOSE 8080
 CMD ["./shipment-service"]

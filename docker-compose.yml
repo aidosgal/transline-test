@@ -89,6 +89,8 @@ services:
       - SHIPMENT_POSTGRES_DBNAME=shipment_db
       - SHIPMENT_POSTGRES_SSLMODE=disable
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+    volumes:
+      - ./services/shipment/storage/migrations:/app/migrations:ro
     expose:
       - "8080"
     depends_on:

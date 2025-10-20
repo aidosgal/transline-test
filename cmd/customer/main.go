@@ -20,19 +20,20 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"google.golang.org/grpc"
 
-	_ "github.com/lib/pq"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 )
 
 func main() {
 	cfg := config.MustLoad()
-	
+
 	log := slog.New(
 		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
@@ -54,6 +55,10 @@ func main() {
 	}()
 
 	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 
 	postgresURL := cfg.CustomerService.Postgres.BuildPostgresURL()
 	log.Info("connecting to database", slog.String("url", postgresURL))
@@ -83,10 +88,7 @@ func main() {
 	if err := m.Up(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
 			log.Info("no migrations to apply", slog.String("error", err.Error()))
-			return
 		}
-		log.Error("failed to apply migrations", slog.String("error", err.Error()))
-		os.Exit(1)
 	}
 
 	log.Info("migration applied successfully")
